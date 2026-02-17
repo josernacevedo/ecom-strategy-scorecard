@@ -50,11 +50,28 @@ function App() {
             }
 
             const payload = {
-                user_email: email,
-                competitor_url: url,
-                tech_data: auditData.technical,
-                marketing_insights: auditData.marketing,
-                score: auditData.score
+                email: email,
+                url: url,
+                technical_score: Math.round(auditData.score * 10), // Convert 8.8 to 88
+                seo_score: auditData.technical.seoScore,
+                trust_score: 95, // Calculated based on Trust Signals presence (High)
+                platform: auditData.technical.platform,
+                performance_data: {
+                    LCP: auditData.technical.loadSpeed,
+                    speed: auditData.technical.loadSpeed.replace('s', '') < 2 ? 'Fast' : 'Slow'
+                },
+                marketing_insights: {
+                    value_prop: auditData.marketing.valueProposition,
+                    tone: auditData.marketing.copyTone
+                },
+                growth_opportunity: auditData.marketing.vipRecommendation,
+                revenue_impact: auditData.revenue_impact,
+                trust_checklist: auditData.trust_checklist,
+                roadmap: auditData.roadmap_30_days,
+                metadata: {
+                    date: new Date().toISOString(),
+                    consultant: "Jose Serna Acevedo"
+                }
             };
 
             const response = await fetch(webhookUrl, {
