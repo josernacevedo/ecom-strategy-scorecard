@@ -1,34 +1,40 @@
 import React from 'react';
-import { AlertCircle, Check, X } from 'lucide-react';
+import { Info, AlertCircle, CheckCircle, InfoIcon } from 'lucide-react';
 
-export default function AuditCard({ title, status, description }) {
-    const getStatusConfig = (s) => {
-        switch (s) {
-            case 'critical': return { icon: <X size={14} />, color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-100', label: 'Critical', badgeText: 'text-slate-900' };
-            case 'warning': return { icon: <AlertCircle size={14} />, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', label: 'Warning', badgeText: 'text-slate-900' };
-            case 'success': return { icon: <Check size={14} />, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', label: 'Optimized', badgeText: 'text-slate-900' };
-            default: return { icon: <AlertCircle size={14} />, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-100', label: 'Info', badgeText: 'text-slate-900' };
-        }
-    };
+const AuditCard = ({ title, status, description, techSource }) => {
+  const statusStyles = {
+    success: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+    warning: 'border-amber-100 bg-amber-50 text-amber-700',
+    critical: 'border-rose-100 bg-rose-50 text-rose-700',
+    info: 'border-blue-100 bg-blue-50 text-blue-700',
+  };
 
-    const config = getStatusConfig(status);
+  const iconStyles = {
+    success: <CheckCircle size={16} className="text-emerald-500" />,
+    warning: <AlertCircle size={16} className="text-amber-500" />,
+    critical: <AlertCircle size={16} className="text-rose-500" />,
+    info: <InfoIcon size={16} className="text-blue-500" />,
+  };
 
-    return (
-        <div className="bg-white p-4 rounded-xl border border-slate-200">
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex gap-3">
-                    <div className={`mt-0.5 p-1.5 rounded-md ${config.bg} ${config.color}`}>
-                        {config.icon}
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-slate-900 text-sm">{title}</h3>
-                        <p className="text-slate-500 text-sm mt-1">{description}</p>
-                    </div>
-                </div>
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${config.bg} ${config.badgeText} ${config.border}`}>
-                    {config.label}
-                </span>
+  return (
+    <div className={`relative group p-4 rounded-xl border ${statusStyles[status]} transition-all hover:shadow-sm`}>
+      <div className="flex justify-between items-start mb-1">
+        <span className="text-xs font-bold uppercase tracking-wider opacity-70 flex items-center gap-1">
+          {title}
+          {/* Tooltip de Transparencia Técnica */}
+          <div className="relative flex items-center">
+            <Info size={12} className="cursor-help text-slate-400 hover:text-slate-600" />
+            <div className="absolute bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl z-50 leading-tight font-normal normal-case">
+              <span className="block font-bold mb-1 border-bottom border-slate-600">Origen del Dato:</span>
+              {techSource}
             </div>
-        </div>
-    );
-}
+          </div>
+        </span>
+        {iconStyles[status]}
+      </div>
+      <p className="text-sm font-medium leading-tight">{description}</p>
+    </div>
+  );
+};
+
+export default AuditCard;
