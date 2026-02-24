@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import MetricHeader from './components/MetricHeader';
 import AuditCard from './components/AuditCard';
-import { Search, ArrowRight, Loader2, Mail, CheckCircle, AlertCircle, Check, Menu } from 'lucide-react';
+import { Search, ArrowRight, Loader2, Mail, Check, CheckCircle } from 'lucide-react';
 import { performSimulatedAudit } from './services/audit';
 
 function App() {
@@ -12,7 +12,14 @@ function App() {
     const [email, setEmail] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [emailSent, setEmailSent] = useState(false);
-    const [sendError, setSendError] = useState(null);
+
+    // Función para determinar el estado según el LCP de Google Core Web Vitals
+    const getLCPStatus = (lcpString) => {
+        const lcp = parseFloat(lcpString.replace('s', ''));
+        if (lcp <= 2.5) return 'success'; // Verde: Bueno
+        if (lcp <= 4.0) return 'warning'; // Naranja: Necesita mejora
+        return 'critical'; // Rojo: Pobre
+    };
 
     const handleAnalyze = async (e) => {
         e.preventDefault();
@@ -20,7 +27,6 @@ function App() {
         setIsAnalyzing(true);
         setAuditData(null);
         setEmailSent(false);
-        setSendError(null);
         try {
             const data = await performSimulatedAudit(url);
             setAuditData(data);
@@ -35,19 +41,19 @@ function App() {
         e.preventDefault();
         if (!email || !auditData) return;
         setIsSending(true);
-        setSendError(null);
         try {
             const webhookUrl = import.meta.env.VITE_MAKE_WEBHOOK_URL;
+            const lcpValue = parseFloat(auditData.technical.loadSpeed.replace('s', ''));
+            
             const payload = {
                 email: email,
                 url: url,
                 technical_score: Math.round(auditData.score * 10),
                 seo_score: auditData.technical.seoScore,
-                trust_score: 95,
                 platform: auditData.technical.platform,
                 performance_data: {
                     LCP: auditData.technical.loadSpeed,
-                    speed: auditData.technical.loadSpeed.replace('s', '') < 2 ? 'Fast' : 'Slow'
+                    speed: lcpValue <= 2.5 ? 'Fast' : (lcpValue <= 4.0 ? 'Average' : 'Slow')
                 },
                 marketing_insights: {
                     value_prop: auditData.marketing.valueProposition,
@@ -55,22 +61,21 @@ function App() {
                 },
                 growth_opportunity: auditData.marketing.vipRecommendation,
                 revenue_impact: auditData.revenue_impact,
-                trust_checklist: auditData.trust_checklist,
                 roadmap: auditData.roadmap_30_days,
                 metadata: {
                     date: new Date().toISOString(),
                     consultant: "Jose Serna Acevedo"
                 }
             };
-            const response = await fetch(webhookUrl, {
+            
+            await fetch(webhookUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
-            if (!response.ok) throw new Error('Network response was not ok');
             setEmailSent(true);
         } catch (error) {
-            setSendError("Failed to send report. Please try again.");
+            console.error("Failed to send report:", error);
         } finally {
             setIsSending(false);
         }
@@ -78,88 +83,80 @@ function App() {
 
     return (
         <div className="flex min-h-screen bg-white">
-            {/* Sidebar oculto en móvil, visible en escritorio */}
             <div className="hidden lg:block">
                 <Sidebar />
             </div>
 
-            {/* Ajuste de margen principal responsive */}
             <main className="lg:ml-64 flex-1 p-4 md:p-8 bg-white min-h-screen w-full">
                 <div className="max-w-5xl mx-auto">
-                    
-                    {/* Header con espaciado móvil */}
                     <div className="mb-6 md:mb-8">
                         <h2 className="text-xl md:text-2xl font-bold text-slate-900">Audit Dashboard</h2>
-                        <p className="text-sm text-slate-500">Welcome back. Ready to analyze a new competitor?</p>
+                        <p className="text-sm text-slate-500">Official Google Core Web Vitals Assessment.</p>
                     </div>
 
-                    {/* Search Hero Adaptable */}
                     <div className="bg-slate-50 p-4 md:p-6 rounded-2xl border border-slate-200 mb-6 md:mb-10">
                         <form onSubmit={handleAnalyze} className="max-w-2xl">
                             <label className="block text-sm font-medium text-slate-700 mb-2">Target URL</label>
                             <div className="flex flex-col sm:flex-row gap-2">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                                    <input
-                                        type="url"
-                                        placeholder="https://example.com"
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 outline-none text-sm md:text-base"
-                                        value={url}
-                                        onChange={(e) => setUrl(e.target.value)}
-                                        disabled={isAnalyzing}
-                                    />
-                                </div>
+                                <input
+                                    type="url"
+                                    placeholder="https://example.com"
+                                    className="flex-1 px-4 py-3 rounded-xl border border-slate-300 outline-none"
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                    disabled={isAnalyzing}
+                                />
                                 <button
                                     type="submit"
                                     disabled={isAnalyzing}
-                                    className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors w-full sm:w-auto"
+                                    className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2"
                                 >
                                     {isAnalyzing ? <Loader2 className="animate-spin" size={18} /> : <span>Analyze</span>}
-                                    {!isAnalyzing && <ArrowRight size={18} />}
                                 </button>
                             </div>
                         </form>
                     </div>
 
-                    {/* Results Section */}
                     {auditData && (
                         <div className="space-y-6 md:space-y-8 animate-fade-in">
                             <MetricHeader score={auditData.score} seoScore={auditData.technical.seoScore} />
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                                 <div className="space-y-3">
-                                    <h3 className="font-semibold text-slate-900 flex items-center gap-2">Technical Insights</h3>
+                                    <h3 className="font-semibold text-slate-900">Technical Insights</h3>
                                     <AuditCard title="Platform" status="success" description={`Detected ${auditData.technical.platform}.`} />
-                                    <AuditCard title="Performance" status="warning" description={`LCP: ${auditData.technical.loadSpeed}.`} />
+                                    {/* Aplicación de la lógica dinámica de Google */}
+                                    <AuditCard 
+                                        title="Performance (LCP)" 
+                                        status={getLCPStatus(auditData.technical.loadSpeed)} 
+                                        description={`Largest Contentful Paint: ${auditData.technical.loadSpeed}.`} 
+                                    />
                                 </div>
                                 <div className="space-y-3">
-                                    <h3 className="font-semibold text-slate-900 flex items-center gap-2">Marketing Strategy</h3>
+                                    <h3 className="font-semibold text-slate-900">Marketing Strategy</h3>
                                     <AuditCard title="Value Prop" status="info" description={auditData.marketing.valueProposition} />
                                     <AuditCard title="VIP Rec" status="critical" description={auditData.marketing.vipRecommendation} />
                                 </div>
                             </div>
 
-                            {/* Lead Magnet Responsive */}
+                            {/* Lead Magnet Section */}
                             <div className="mt-8 md:mt-12 bg-indigo-900 rounded-2xl p-6 md:p-8 text-white">
                                 <h3 className="text-xl md:text-2xl font-bold mb-2">Get the Full Strategic Report</h3>
-                                <p className="text-indigo-200 text-sm md:text-base mb-6">Unlock 15+ data points delivered to your inbox.</p>
+                                <p className="text-indigo-200 mb-6">Unlock deep analysis and ROI projections.</p>
                                 <form onSubmit={sendReportToMake} className="flex flex-col sm:flex-row gap-3">
-                                    <div className="relative flex-1">
-                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-300" size={20} />
-                                        <input
-                                            type="email"
-                                            required
-                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/10 border border-indigo-500/30 text-white outline-none"
-                                            placeholder="you@company.com"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            disabled={isSending || emailSent}
-                                        />
-                                    </div>
+                                    <input
+                                        type="email"
+                                        required
+                                        className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-indigo-500/30 text-white outline-none"
+                                        placeholder="you@company.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        disabled={isSending || emailSent}
+                                    />
                                     <button
                                         type="submit"
                                         disabled={isSending || emailSent}
-                                        className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 w-full sm:w-auto ${
+                                        className={`px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 ${
                                             emailSent ? 'bg-emerald-500' : 'bg-white text-indigo-900'
                                         }`}
                                     >
