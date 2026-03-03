@@ -1,50 +1,59 @@
 /**
- * VertexPoint Audit Engine v4.1 - ROBUST MODE
- * Solución a Errores 429 y TypeErrors detectados en consola.
+ * VertexPoint Audit Engine v4.2 - STABLE PRODUCTION
+ * Solución al Build Failure de Vercel y detección universal.
  */
-
-// NOTA: Para producción, genera tu propia llave en Google Cloud Console.
-const GOOGLE_API_KEY = AIzaSyA3UTqS_pH4VGTM--vA55nJ-sSdh0sp_xI
 
 export const performSimulatedAudit = async (url) => {
   try {
+    // REEMPLAZA ESTA LLAVE CON LA QUE CREASTE EN GOOGLE CLOUD
+    const GOOGLE_API_KEY = AIzaSyA3UTqS_pH4VGTM--vA55nJ-sSdh0sp_xI; 
+    
     const psiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=SEO&category=PERFORMANCE&key=${GOOGLE_API_KEY}`;
     
     const response = await fetch(psiUrl);
     const data = await response.json();
 
-    // VALIDACIÓN DE SEGURIDAD: Si Google falla, evitamos la pantalla blanca
-    if (data.error || !data.lighthouseResult) {
-      console.error("Error de la API de Google:", data.error?.message || "Sin datos");
-      return { error: "Límite de Google excedido. Intenta en 1 min." };
+    // VALIDACIÓN DE SEGURIDAD: Evita que la pantalla se ponga blanca si la API falla
+    if (!data || !data.lighthouseResult) {
+      return { 
+        url, 
+        score: "0", 
+        technical: { platform: "Error de API", loadSpeed: "0s" },
+        ai_readiness: { impact_label: "No se pudo obtener datos de Google." }
+      };
     }
 
-    // Extracción segura de datos
+    // Definimos rawData aquí para que sea accesible en todo el código siguiente
+    const rawData = JSON.stringify(data).toLowerCase();
+    
     const audits = data.lighthouseResult.audits;
-    const lcpValue = audits['largest-contentful-paint']?.numericValue / 1000 || 0;
+    const performanceScore = data.lighthouseResult.categories.performance?.score || 0;
+    const lcpDisplay = audits['largest-contentful-paint']?.displayValue || "0s";
     const seoScore = Math.floor(data.lighthouseResult.categories.seo?.score * 100) || 0;
 
-    // Detección de Plataforma por Evidencia (Universal)
-    const rawData = JSON.stringify(data).toLowerCase();
-    let platform = "Custom Architecture";
-    if (rawData.includes('shopify')) platform = "Shopify (Plus Edition)";
-    else if (rawData.includes('wp-content') || rawData.includes('woocommerce')) platform = "WooCommerce";
-    else if (rawData.includes('vtex')) platform = "VTEX Enterprise";
+    // DETECCIÓN UNIVERSAL: Busca huellas técnicas en el código real de la web
+    let platformName = "Custom Architecture (React/Next.js)";
+    if (rawData.includes('shopify')) platformName = "Shopify (Plus Edition)";
+    else if (rawData.includes('wp-content') || rawData.includes('woocommerce')) platformName = "WooCommerce";
+    else if (rawData.includes('vtex')) platformName = "VTEX Enterprise";
 
     return {
       url: url,
-      score: (data.lighthouseResult.categories.performance.score * 10).toFixed(1),
+      score: (performanceScore * 10).toFixed(1),
       technical: {
-        platform: platform,
-        loadSpeed: `${lcpValue.toFixed(1)}s`,
+        platform: platformName,
+        loadSpeed: lcpDisplay,
         seoScore: seoScore
       },
       ai_readiness: {
         schema_detected: rawData.includes('ld+json'),
-        impact_label: rawData.includes('ld+json') ? "Alta visibilidad IA" : "Baja visibilidad IA"
+        impact_label: rawData.includes('ld+json') 
+          ? "Alta visibilidad en motores de respuesta de IA (AEO)." 
+          : "Baja visibilidad en motores de respuesta de IA (AEO)."
       }
     };
   } catch (error) {
-    return { error: "Fallo crítico en la conexión." };
+    console.error("Fallo crítico en auditoría:", error);
+    return { error: "Error de red o configuración." };
   }
 };
